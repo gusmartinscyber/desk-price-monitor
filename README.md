@@ -48,6 +48,21 @@ cd desk-price-monitor
 pip install -r requirements.txt
 ```
 
+### Ambiente virtual (opcional)
+
+Para isolar a dependência `requests` do Python do sistema, use um venv:
+
+```bash
+cd desk-price-monitor
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 openrouter_widget.py
+deactivate   # quando terminar
+```
+
+O `.venv/` já está no `.gitignore`, então não vaza para o commit.
+
 ---
 
 ## Como executar
