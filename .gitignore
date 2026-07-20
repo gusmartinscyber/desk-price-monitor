@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+
+# Virtualenvs
+.venv/
+venv/
+env/
+ENV/
+
+# Build / dist
+build/
+dist/
+*.whl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+
+# Env
+.env
+.env.local
+
+# Runtime artifacts
+*.pid
+*.sock
