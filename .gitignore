@@ -38,3 +38,6 @@ dist/
 # Runtime artifacts
 *.pid
 *.sock
+
+# App config (gerado automaticamente no primeiro run; edite livremente)
+models.json

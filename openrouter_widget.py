@@ -1,38 +1,80 @@
+import json
 import tkinter as tk
 from tkinter import ttk
+from pathlib import Path
 import requests
 import threading
 import time
 
-MODELS_TO_WATCH = {
-    "meta-llama/llama-3.3-70b-instruct": {
-        "nickname": "Llama 3.3 70B",
-        "provider": "Meta",
-        "base_in": 0.0000006,
-        "base_out": 0.0000008,
-    },
-    "anthropic/claude-3.5-sonnet": {
-        "nickname": "Claude 3.5 Sonnet",
-        "provider": "Anthropic",
-        "base_in": 0.000003,
-        "base_out": 0.000015,
-    },
-    "deepseek/deepseek-chat": {
-        "nickname": "DeepSeek V3",
-        "provider": "DeepSeek",
-        "base_in": 0.00000014,
-        "base_out": 0.00000028,
+CONFIG_PATH = Path(__file__).with_name("models.json")
+ALL_LABEL = "Todos"
+
+DEFAULT_CONFIG = {
+    "interval": 60,
+    "models": {
+        "meta-llama/llama-3.3-70b-instruct": {
+            "nickname": "Llama 3.3 70B",
+            "provider": "Meta",
+            "base_in": 0.0000006,
+            "base_out": 0.0000008,
+        },
+        "anthropic/claude-3.5-sonnet": {
+            "nickname": "Claude 3.5 Sonnet",
+            "provider": "Anthropic",
+            "base_in": 0.000003,
+            "base_out": 0.000015,
+        },
+        "deepseek/deepseek-chat": {
+            "nickname": "DeepSeek V3",
+            "provider": "DeepSeek",
+            "base_in": 0.00000014,
+            "base_out": 0.00000028,
+        },
     },
 }
 
-ALL_LABEL = "Todos"
-INTERVALO_ATUALIZACAO = 60
+
+def load_config(path: Path) -> dict:
+    if not path.exists():
+        try:
+            path.write_text(
+                json.dumps(DEFAULT_CONFIG, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            return DEFAULT_CONFIG
+        except OSError as e:
+            print(f"[models.json] Não foi possível criar ({e}). Usando defaults em memória.")
+            return DEFAULT_CONFIG
+
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if "models" not in data or not isinstance(data["models"], dict):
+            raise ValueError("'models' deve ser um objeto {id: {nickname, provider, base_in, base_out}}")
+        data.setdefault("interval", 60)
+        if not isinstance(data["interval"], int) or data["interval"] < 1:
+            data["interval"] = 60
+        for model_id, cfg in data["models"].items():
+            for required in ("nickname", "provider", "base_in", "base_out"):
+                if required not in cfg:
+                    raise ValueError(f"Modelo {model_id!r} sem campo {required!r}")
+            cfg["base_in"] = float(cfg["base_in"])
+            cfg["base_out"] = float(cfg["base_out"])
+        return data
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"[models.json] Erro: {e}. Usando defaults em memória.")
+        return DEFAULT_CONFIG
 
 
 class OpenRouterWidget:
     def __init__(self, root):
         self.root = root
         self.root.title("OpenRouter Monitor")
+
+        self.config_path = CONFIG_PATH
+        self.config = load_config(self.config_path)
+        self.models = self.config["models"]
+        self.interval = self.config["interval"]
 
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
@@ -102,6 +144,13 @@ class OpenRouterWidget:
         self.model_rows = {}
         self.setup_ui_rows()
 
+        if not self.config_path.exists():
+            self.status_label.config(text="models.json criado (edite e reinicie)")
+        else:
+            self.status_label.config(
+                text=f"{len(self.models)} modelos carregados de models.json"
+            )
+
         self.running = True
         self.thread = threading.Thread(target=self.update_loop, daemon=True)
         self.thread.start()
@@ -127,7 +176,7 @@ class OpenRouterWidget:
         self.root.option_add("*TCombobox*Listbox*font", ("Helvetica", 9))
 
     def _collect_providers(self):
-        return sorted({c["provider"] for c in MODELS_TO_WATCH.values()})
+        return sorted({c["provider"] for c in self.models.values()})
 
     def _on_filter_change(self, _event=None):
         sel = self.provider_var.get()
@@ -138,7 +187,7 @@ class OpenRouterWidget:
                 info["row"].pack_forget()
 
     def setup_ui_rows(self):
-        for model_id, config in MODELS_TO_WATCH.items():
+        for model_id, config in self.models.items():
             row = tk.Frame(self.list_frame, bg="#1e1e2e", pady=5)
             row.pack(fill=tk.X)
 
@@ -195,13 +244,13 @@ class OpenRouterWidget:
             except Exception:
                 self.root.after(0, self.set_status, "Erro de conexão")
 
-            time.sleep(INTERVALO_ATUALIZACAO)
+            time.sleep(self.interval)
 
     def refresh_ui(self, api_data):
         agora = time.strftime("%H:%M:%S")
         self.status_label.config(text=f"Última checagem: {agora}")
 
-        for model_id, config in MODELS_TO_WATCH.items():
+        for model_id, config in self.models.items():
             if model_id in api_data and model_id in self.model_rows:
                 pricing = api_data[model_id]
                 info = self.model_rows[model_id]

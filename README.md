@@ -120,29 +120,47 @@ else:
 
 ## Configuração
 
-Edite o dicionário `MODELS_TO_WATCH` no topo de `openrouter_widget.py`:
+A lista de modelos vive em **`models.json`** (mesma pasta do script). O arquivo é **criado automaticamente no primeiro run** com 3 modelos de exemplo, e fica **fora do git** (`.gitignore`) — assim suas edições não são sobrescritas em `git pull`.
 
-```python
-MODELS_TO_WATCH = {
-    "id-do-modelo-no-openrouter": {
-        "nickname":  "Nome curto para o widget",
-        "provider":  "NomeDoProvedor",   # usado no filtro do dropdown
-        "base_in":   0.0000006,          # USD por token (input)
-        "base_out":  0.0000008,          # USD por token (output)
+Para adicionar/remover/editar modelos, basta abrir o `models.json` num editor, salvar, e reiniciar o widget:
+
+```json
+{
+  "interval": 60,
+  "models": {
+    "meta-llama/llama-3.3-70b-instruct": {
+      "nickname": "Llama 3.3 70B",
+      "provider": "Meta",
+      "base_in":  0.0000006,
+      "base_out": 0.0000008
     },
-    # adicione mais aqui
+    "anthropic/claude-3.5-sonnet": {
+      "nickname": "Claude 3.5 Sonnet",
+      "provider": "Anthropic",
+      "base_in":  0.000003,
+      "base_out": 0.000015
+    },
+    "deepseek/deepseek-chat": {
+      "nickname": "DeepSeek V3",
+      "provider": "DeepSeek",
+      "base_in":  0.00000014,
+      "base_out": 0.00000028
+    }
+  }
 }
 ```
 
-O dropdown no header é populado automaticamente com os provedores únicos encontrados em `MODELS_TO_WATCH`, mais a opção `Todos` (default = mostra tudo).
+| Campo | Significado |
+|-------|-------------|
+| `interval` | Segundos entre cada checagem da API (mínimo 1) |
+| `models` | Dict `{id_openrouter: {nickname, provider, base_in, base_out}}` |
+| `nickname` | Apelido curto exibido no widget |
+| `provider` | Nome do provedor — usado no dropdown de filtro |
+| `base_in` / `base_out` | Preço-base (USD/token) para detectar promoções |
+
+**Validação:** se o `models.json` estiver malformado ou faltar campos obrigatórios, o widget loga o erro no terminal e usa os defaults em memória (sem sobrescrever o seu arquivo).
 
 A lista completa de IDs está em <https://openrouter.ai/models>.
-
-Para ajustar o intervalo de checagem, altere:
-
-```python
-INTERVALO_ATUALIZACAO = 60  # segundos
-```
 
 ---
 
@@ -160,7 +178,8 @@ desk-price-monitor/
 ├── README.md            # este arquivo
 ├── requirements.txt     # requests
 ├── .gitignore
-└── openrouter_widget.py # todo o código (~140 linhas, single-file)
+├── openrouter_widget.py # todo o código (~210 linhas, single-file)
+└── models.json          # auto-criado no 1º run, gitignored (suas edições ficam)
 ```
 
 ## Licença
