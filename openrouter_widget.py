@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 import requests
 import threading
 import time
@@ -6,21 +7,25 @@ import time
 MODELS_TO_WATCH = {
     "meta-llama/llama-3.3-70b-instruct": {
         "nickname": "Llama 3.3 70B",
+        "provider": "Meta",
         "base_in": 0.0000006,
         "base_out": 0.0000008,
     },
     "anthropic/claude-3.5-sonnet": {
         "nickname": "Claude 3.5 Sonnet",
+        "provider": "Anthropic",
         "base_in": 0.000003,
         "base_out": 0.000015,
     },
     "deepseek/deepseek-chat": {
         "nickname": "DeepSeek V3",
+        "provider": "DeepSeek",
         "base_in": 0.00000014,
         "base_out": 0.00000028,
     },
 }
 
+ALL_LABEL = "Todos"
 INTERVALO_ATUALIZACAO = 60
 
 
@@ -31,21 +36,40 @@ class OpenRouterWidget:
 
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
-        self.root.geometry("380x250+50+50")
+        self.root.geometry("380x290+50+50")
         self.root.configure(bg="#1e1e2e")
 
         self.root.bind("<Button-1>", self.start_drag)
         self.root.bind("<B1-Motion>", self.drag)
 
-        self.header = tk.Label(
-            root,
+        self._setup_combobox_style()
+
+        self.header = tk.Frame(root, bg="#313244")
+        self.header.pack(fill=tk.X)
+
+        self.title_lbl = tk.Label(
+            self.header,
             text="📊 OPENROUTER MONITOR",
             bg="#313244",
             fg="#cdd6f4",
             font=("Helvetica", 10, "bold"),
             pady=5,
+            padx=10,
         )
-        self.header.pack(fill=tk.X)
+        self.title_lbl.pack(side=tk.LEFT)
+
+        self.providers = self._collect_providers()
+        self.provider_var = tk.StringVar(value=ALL_LABEL)
+        self.filter_combo = ttk.Combobox(
+            self.header,
+            textvariable=self.provider_var,
+            values=[ALL_LABEL] + self.providers,
+            state="readonly",
+            width=12,
+            font=("Helvetica", 9),
+        )
+        self.filter_combo.pack(side=tk.RIGHT, padx=10, pady=4)
+        self.filter_combo.bind("<<ComboboxSelected>>", self._on_filter_change)
 
         self.list_frame = tk.Frame(root, bg="#1e1e2e", padx=10, pady=10)
         self.list_frame.pack(fill=tk.BOTH, expand=True)
@@ -75,12 +99,43 @@ class OpenRouterWidget:
         )
         self.close_btn.pack(side=tk.RIGHT)
 
-        self.model_labels = {}
+        self.model_rows = {}
         self.setup_ui_rows()
 
         self.running = True
         self.thread = threading.Thread(target=self.update_loop, daemon=True)
         self.thread.start()
+
+    def _setup_combobox_style(self):
+        style = ttk.Style()
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+        style.configure(
+            "TCombobox",
+            fieldbackground="#1e1e2e",
+            background="#313244",
+            foreground="#cdd6f4",
+            arrowcolor="#cdd6f4",
+            bordercolor="#45475a",
+        )
+        self.root.option_add("*TCombobox*Listbox*Background", "#1e1e2e")
+        self.root.option_add("*TCombobox*Listbox*Foreground", "#cdd6f4")
+        self.root.option_add("*TCombobox*Listbox*selectBackground", "#45475a")
+        self.root.option_add("*TCombobox*Listbox*selectForeground", "#cdd6f4")
+        self.root.option_add("*TCombobox*Listbox*font", ("Helvetica", 9))
+
+    def _collect_providers(self):
+        return sorted({c["provider"] for c in MODELS_TO_WATCH.values()})
+
+    def _on_filter_change(self, _event=None):
+        sel = self.provider_var.get()
+        for info in self.model_rows.values():
+            if sel == ALL_LABEL or info["provider"] == sel:
+                info["row"].pack(fill=tk.X)
+            else:
+                info["row"].pack_forget()
 
     def setup_ui_rows(self):
         for model_id, config in MODELS_TO_WATCH.items():
@@ -89,7 +144,7 @@ class OpenRouterWidget:
 
             name_lbl = tk.Label(
                 row,
-                text=config["nickname"],
+                text=f"{config['nickname']}  ({config['provider']})",
                 bg="#1e1e2e",
                 fg="#cdd6f4",
                 font=("Helvetica", 9, "bold"),
@@ -107,7 +162,11 @@ class OpenRouterWidget:
             )
             price_lbl.pack(side=tk.RIGHT)
 
-            self.model_labels[model_id] = price_lbl
+            self.model_rows[model_id] = {
+                "row": row,
+                "price": price_lbl,
+                "provider": config["provider"],
+            }
 
     def start_drag(self, event):
         self.x = event.x
@@ -143,8 +202,10 @@ class OpenRouterWidget:
         self.status_label.config(text=f"Última checagem: {agora}")
 
         for model_id, config in MODELS_TO_WATCH.items():
-            if model_id in api_data and model_id in self.model_labels:
+            if model_id in api_data and model_id in self.model_rows:
                 pricing = api_data[model_id]
+                info = self.model_rows[model_id]
+                price_lbl = info["price"]
 
                 curr_in_m = float(pricing.get("prompt", 0)) * 1_000_000
                 curr_out_m = float(pricing.get("completion", 0)) * 1_000_000
@@ -159,15 +220,12 @@ class OpenRouterWidget:
                 texto_preco = f"In: ${curr_in_m:.2f} | Out: ${curr_out_m:.2f}"
 
                 if max_discount >= 0.15:
-                    self.model_labels[model_id].config(
+                    price_lbl.config(
                         text=f"🔥 {texto_preco} (-{max_discount*100:.0f}%)",
                         fg="#a6e3a1",
                     )
                 else:
-                    self.model_labels[model_id].config(
-                        text=texto_preco,
-                        fg="#bac2de",
-                    )
+                    price_lbl.config(text=texto_preco, fg="#bac2de")
 
     def set_status(self, text):
         self.status_label.config(text=text)

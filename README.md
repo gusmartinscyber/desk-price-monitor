@@ -11,16 +11,18 @@ A janela flutua sobre as outras aplicações, é arrastável e acende em verde (
 ## Preview
 
 ```
-┌────────────────────────────────────────┐
-│  📊 OPENROUTER MONITOR                 │
-├────────────────────────────────────────┤
-│  Llama 3.3 70B        In: $0.59|Out:… │
-│  Claude 3.5 Sonnet    In: $3.00|Out:… │
-│  DeepSeek V3          In: $0.14|Out:… │
-├────────────────────────────────────────┤
-│  Última checagem: 14:32:01           ✕ │
-└────────────────────────────────────────┘
+┌────────────────────────────────────────────────┐
+│  📊 OPENROUTER MONITOR          [Todos   ▾]   │
+├────────────────────────────────────────────────┤
+│  Llama 3.3 70B  (Meta)      In: $0.59|Out:… │
+│  Claude 3.5 Sonnet (Anthropic) In: $3.00|Out:… │
+│  DeepSeek V3  (DeepSeek)     In: $0.14|Out:… │
+├────────────────────────────────────────────────┤
+│  Última checagem: 14:32:01                  ✕ │
+└────────────────────────────────────────────────┘
 ```
+
+O dropdown no topo direito filtra por provedor — escolha `Meta`, `Anthropic`, `DeepSeek` (ou qualquer outro que você adicionar em `MODELS_TO_WATCH`) para ver só os modelos daquele provedor. `Todos` mostra tudo.
 
 Paleta inspirada em [Catppuccin Mocha](https://github.com/catppuccin/catppuccin).
 
@@ -78,6 +80,7 @@ A janela aparece no canto superior esquerdo. Use o mouse para arrastá-la para q
 | Ação | Como |
 |------|------|
 | Arrastar a janela | Clique em qualquer parte escura do widget e segure |
+| Filtrar por provedor | Dropdown no canto superior direito |
 | Fechar | Botão `✕` no canto inferior direito |
 | Sair pelo teclado | `Ctrl+C` no terminal que iniciou o processo |
 
@@ -122,13 +125,16 @@ Edite o dicionário `MODELS_TO_WATCH` no topo de `openrouter_widget.py`:
 ```python
 MODELS_TO_WATCH = {
     "id-do-modelo-no-openrouter": {
-        "nickname": "Nome curto para o widget",
-        "base_in":  0.0000006,   # USD por token (input)
-        "base_out": 0.0000008,   # USD por token (output)
+        "nickname":  "Nome curto para o widget",
+        "provider":  "NomeDoProvedor",   # usado no filtro do dropdown
+        "base_in":   0.0000006,          # USD por token (input)
+        "base_out":  0.0000008,          # USD por token (output)
     },
     # adicione mais aqui
 }
 ```
+
+O dropdown no header é populado automaticamente com os provedores únicos encontrados em `MODELS_TO_WATCH`, mais a opção `Todos` (default = mostra tudo).
 
 A lista completa de IDs está em <https://openrouter.ai/models>.
 
